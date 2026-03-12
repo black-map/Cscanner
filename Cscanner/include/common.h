@@ -14,11 +14,15 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
+#ifdef __linux__
+#include <linux/sctp.h>
+#endif
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/epoll.h>
+#include <sys/user.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <ctype.h>
@@ -33,6 +37,9 @@
 #define DEFAULT_TIMEOUT 2000
 #define MAX_PACKET_SIZE 65536
 #define EPOLL_MAX_EVENTS 1024
+#define IO_URING_QUEUE_SIZE 1024
+#define PIPELINE_BATCH_SIZE 64
+#define ADAPTIVE_SAMPLE_SIZE 100
 
 typedef enum {
     PORT_OPEN,
@@ -51,15 +58,25 @@ typedef enum {
     SCAN_ACK,
     SCAN_UDP,
     SCAN_WINDOW,
-    SCAN_MAIMON
+    SCAN_MAIMON,
+    SCAN_SCTP_INIT,
+    SCAN_SCTP_COOKIE
 } scan_type_t;
 
 typedef enum {
     FORMAT_NORMAL,
     FORMAT_XML,
     FORMAT_JSON,
-    FORMAT_GREPEABLE
+    FORMAT_GREPEABLE,
+    FORMAT_CSV
 } output_format_t;
+
+typedef enum {
+    ADAPTIVE_SLOW,
+    ADAPTIVE_NORMAL,
+    ADAPTIVE_FAST,
+    ADAPTIVE_INSANE
+} adaptive_level_t;
 
 typedef struct {
     char ip[INET_ADDRSTRLEN];
@@ -69,6 +86,9 @@ typedef struct {
     char version[256];
     char banner[BANNER_SIZE];
     double response_time;
+    uint8_t ttl;
+    uint16_t window;
+    char os_guess[128];
 } scan_result_t;
 
 typedef struct {
@@ -93,7 +113,51 @@ typedef struct {
     uint8_t ttl;
 } tcp_packet_info_t;
 
+typedef struct {
+    double avg_latency;
+    double congestion_factor;
+    adaptive_level_t level;
+    int current_rate;
+    int success_count;
+    int failure_count;
+    time_t last_update;
+} adaptive_engine_t;
+
+typedef struct {
+    int epoll_fd;
+    int use_epoll;
+    int max_events;
+    struct epoll_event *events;
+    int initialized;
+} async_context_t;
+
+typedef struct {
+    char script_path[512];
+    int enabled;
+} lua_config_t;
+
+typedef struct {
+    char target[256];
+    int port_start;
+    int port_end;
+    scan_type_t scan_type;
+    int timeout;
+    int threads;
+    int rate_limit;
+    int timing;
+    int version_detect;
+    char output_file[256];
+    output_format_t output_format;
+    int verbose;
+    int color_output;
+    int adaptive;
+    char interface[64];
+    lua_config_t lua;
+} scan_config_t;
+
 extern volatile int running;
 extern int verbose_mode;
+
+typedef port_state_t (*scan_func_t)(const char *, int, int);
 
 #endif

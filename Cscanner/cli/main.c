@@ -126,15 +126,24 @@ int main(int argc, char *argv[]) {
     }
     
     if (config.verbose) {
-        printf("[*] Blackmap v1.2\n");
+        printf("[*] CScanner v1.4\n");
         printf("[*] Target: %s (%s)\n", config.target, ip);
         printf("[*] Scan Type: %d\n", config.scan_type);
         printf("[*] Timing: T%d (timeout: %d ms, threads: %d)\n", config.timing, config.timeout, config.threads);
+        if (config.adaptive) printf("[*] Adaptive mode: enabled\n");
+        if (config.color_output) printf("[*] Color output: enabled\n");
     }
     
     int *ports = NULL;
     int port_count = 0;
-    parse_ports(config.port_str, &ports, &port_count);
+    
+    char port_str[32];
+    if (config.port_start == config.port_end) {
+        snprintf(port_str, sizeof(port_str), "%d", config.port_start);
+    } else {
+        snprintf(port_str, sizeof(port_str), "%d-%d", config.port_start, config.port_end);
+    }
+    parse_ports(port_str, &ports, &port_count);
     
     if (config.verbose) {
         printf("[*] Ports to scan: %d\n", port_count);
@@ -149,13 +158,13 @@ int main(int argc, char *argv[]) {
     
     if (config.output_format == FORMAT_JSON) {
         fprintf(output_fp, "{\n");
-        fprintf(output_fp, "  \"scanner\": \"blackmap\",\n");
-        fprintf(output_fp, "  \"version\": \"1.2\",\n");
+        fprintf(output_fp, "  \"scanner\": \"cscanner\",\n");
+        fprintf(output_fp, "  \"version\": \"1.4\",\n");
         fprintf(output_fp, "  \"target\": \"%s\",\n", ip);
         fprintf(output_fp, "  \"results\": [\n");
     } else if (config.output_format == FORMAT_XML) {
         fprintf(output_fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-        fprintf(output_fp, "<nmaprun scanner=\"blackmap\" version=\"1.2\">\n");
+        fprintf(output_fp, "<nmaprun scanner=\"cscanner\" version=\"1.4\">\n");
         fprintf(output_fp, "<host><address addr=\"%s\" addrtype=\"ipv4\"/></host>\n", ip);
         fprintf(output_fp, "<ports>\n");
     }

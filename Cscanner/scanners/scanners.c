@@ -375,6 +375,34 @@ port_state_t udp_scan(const char *target_ip, int port, int timeout) {
     return PORT_CLOSED;
 }
 
+port_state_t sctp_init_scan(const char *target_ip, int port, int timeout) {
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP);
+    if (sock < 0) return PORT_FILTERED;
+    
+    struct timeval tv;
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, target_ip, &addr.sin_addr);
+    
+    int ret = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
+    close(sock);
+    
+    if (ret == 0) return PORT_OPEN;
+    if (errno == EAGAIN || errno == ETIMEDOUT || errno == ECONNREFUSED) return PORT_CLOSED;
+    return PORT_FILTERED;
+}
+
+port_state_t sctp_cookie_scan(const char *target_ip, int port, int timeout) {
+    return sctp_init_scan(target_ip, port, timeout);
+}
+
 scan_func_t get_scan_function(scan_type_t scan_type) {
     switch (scan_type) {
         case SCAN_SYN: return syn_scan;
@@ -383,6 +411,8 @@ scan_func_t get_scan_function(scan_type_t scan_type) {
         case SCAN_NULL: return null_scan;
         case SCAN_ACK: return ack_scan;
         case SCAN_UDP: return udp_scan;
+        case SCAN_SCTP_INIT: return sctp_init_scan;
+        case SCAN_SCTP_COOKIE: return sctp_cookie_scan;
         case SCAN_CONNECT:
         default:
             return connect_scan;
