@@ -1,9 +1,9 @@
-# Blackmap Scanner - Simple Makefile
+# CScanner - Simple Makefile
 
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -pthread -D_DEFAULT_SOURCE
 
-TARGET = blackmap
+TARGET = cscanner
 
 all:
 	$(CC) $(CFLAGS) -o $(TARGET) \
