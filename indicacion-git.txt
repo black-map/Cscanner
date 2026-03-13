@@ -1,0 +1,13 @@
+cd ~/Escritorio/Cscanner/Cscanner
+
+git init
+
+git remote add origin https://github.com/black-map/Cscanner.git
+
+git add .
+
+git commit -m "Cscanner v1.5 ultra advanced network scanner"
+
+git branch -M main
+
+git push -u origin main
